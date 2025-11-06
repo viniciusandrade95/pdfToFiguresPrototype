@@ -97,6 +97,22 @@ class EnhancedAnnualReportExtractor:
 
     def create_extraction_prompt(self, text: str, file_name: str = "") -> str:
         """Create a more detailed extraction prompt"""
+        industry = self._detect_industry(text, file_name)
+        operational_fields = self._build_operational_schema(industry)
+
+        operational_schema_lines = []
+        for field_name, description in operational_fields:
+            operational_schema_lines.append(f'        "{field_name}": "{description}"')
+        operational_schema = ",\n".join(operational_schema_lines)
+
+        industry_instruction = (
+            "Tailor operational metrics to the banking sector (focus on customers, accounts, branches, etc.)."
+            if industry == "banking"
+            else "Tailor operational metrics to the airline/aviation sector (focus on passengers, routes, fleet, etc.)."
+            if industry == "airline"
+            else "Keep operational metrics generic and only include figures explicitly mentioned in the report."
+        )
+
         return f"""
 You are analyzing an annual report. Extract key financial and operational data.
 
@@ -108,6 +124,7 @@ INSTRUCTIONS:
 - Return only valid JSON
 - Use null for missing values
 - Be precise with numbers
+- {industry_instruction}
 
 REQUIRED JSON FORMAT:
 {{
@@ -123,10 +140,7 @@ REQUIRED JSON FORMAT:
         "total_debt": "number in millions"
     }},
     "operational_metrics": {{
-        "employees": "integer",
-        "customers_passengers": "integer (annual)",
-        "locations_routes": "integer",
-        "key_operational_metric": "string description"
+{operational_schema}
     }},
     "sustainability": {{
         "co2_emissions": "number if mentioned",
@@ -141,6 +155,60 @@ ANNUAL REPORT TEXT:
 
 Return only the JSON object:
 """
+
+    def _detect_industry(self, text: str, file_name: str = "") -> str:
+        """Rudimentary industry detection based on filename and text."""
+        sample = f"{file_name} {text[:2000]}".lower()
+
+        banking_keywords = [
+            "bank",
+            "banking",
+            "financial services",
+            "credit union",
+            "loan portfolio",
+            "deposits",
+            "interest income",
+        ]
+
+        airline_keywords = [
+            "airline",
+            "airways",
+            "aviation",
+            "passenger",
+            "fleet",
+            "route network",
+        ]
+
+        if any(keyword in sample for keyword in banking_keywords):
+            return "banking"
+        if any(keyword in sample for keyword in airline_keywords):
+            return "airline"
+        return "general"
+
+    def _build_operational_schema(self, industry: str):
+        """Return operational metrics schema entries based on the detected industry."""
+        if industry == "banking":
+            return [
+                ("employees", "integer"),
+                ("customer_accounts", "integer (total active customer accounts)"),
+                ("branches", "integer (number of branches or offices)"),
+                ("key_operational_metric", "string description of any other disclosed operational metric"),
+            ]
+
+        if industry == "airline":
+            return [
+                ("employees", "integer"),
+                ("passengers_carried", "integer (total annual passengers)"),
+                ("routes_served", "integer (destinations or routes)"),
+                ("key_operational_metric", "string description of any other disclosed operational metric"),
+            ]
+
+        return [
+            ("employees", "integer"),
+            ("customers", "integer if a customer count is explicitly stated"),
+            ("locations", "integer (number of sites, stores, or facilities if mentioned)"),
+            ("key_operational_metric", "string description of any other disclosed operational metric"),
+        ]
 
     def extract_structured_data(self, text: str, file_name: str = "") -> Dict[str, Any]:
         """Extract with improved error handling and validation"""
