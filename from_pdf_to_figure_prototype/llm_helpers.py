@@ -3,7 +3,7 @@ import os, sys, re, json, time, requests
 from typing import Any, Dict, List, Optional
 
 # ----------------------------- USER SETTINGS -----------------------------
-API_KEY  = "sk-97b27b041cc0446e99a4ee2a0f85ab60"  # set env var or put key here
+API_KEY  = "sk-97DFSFSDFFDSFSSDDSFSFSFDS"  # set env var or put key here
 BASE_URL = "https://llm.lab.sspcloud.fr/api"
 TIMEOUT  = 30
 HEADERS  = {"Content-Type": "application/json", "Authorization": f"Bearer {API_KEY}"}
